@@ -84,7 +84,7 @@ function! s:CloseAllBuffers(bang)
 endfunction
 
 function! s:CloseHiddenBuffers(bang)
-  let hidden_buffers = map(filter(s:getListedOrLoadedBuffers(), 'empty(v:val.windows)'), 'v:val.bufnr')
+  let hidden_buffers = map(filter(s:getListedOrLoadedBuffers(), 'empty(v:val.windows) && v:val.name !~ "NERD_tree" && v:val.name !~ "__Tagbar__"'), 'v:val.bufnr')
   call s:DeleteBuffers(hidden_buffers, a:bang)
 endfunction
 
@@ -95,7 +95,7 @@ endfunction
 
 function! s:CloseOtherBuffers(bang)
   let current_buffer = bufnr('%')
-  let other_buffers = map(filter(s:getListedOrLoadedBuffers(), 'v:val.bufnr != current_buffer'), 'v:val.bufnr')
+  let other_buffers = map(filter(s:getListedOrLoadedBuffers(), 'v:val.bufnr != current_buffer && v:val.name !~ "NERD_tree" && v:val.name !~ "__Tagbar__"'), 'v:val.bufnr')
   call s:DeleteBuffers(other_buffers, a:bang)
 endfunction
 
