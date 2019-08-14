@@ -21,112 +21,87 @@ let g:loaded_close_buffers = 1
 let s:save_cpo = &cpo
 set cpo&vim
 
-let s:menu_option_letters = split('c a h n o s t')
-let s:letter_to_confirm_option = {
-      \ 'c'  : '&Cancel',
-      \ 'a'  : '&All',
-      \ 'h'  : '&Hidden',
-      \ 'n'  : '&Nameless',
-      \ 'o'  : '&Other',
-      \ 's'  : '&Select',
-      \ 't'  : '&This',
-      \ }
-let s:letter_to_function_name = {
-      \ 'c'  : '',
-      \ 'a'  : 'CloseAllBuffers',
-      \ 'h'  : 'CloseHiddenBuffers',
-      \ 'n'  : 'CloseNamelessBuffers',
-      \ 'o'  : 'CloseOtherBuffers',
-      \ 's'  : 'CloseSelectedBuffers',
-      \ 't'  : 'CloseThisBuffer',
-      \ }
-let s:confirm_string = join(map(deepcopy(s:menu_option_letters), 's:letter_to_confirm_option[v:val]'), "\n")
-
 " Commands
 " --------------------
 if !exists(':CloseAllBuffers')
-  command -bang CloseAllBuffers call s:CloseAllBuffers(<bang>0)
+  command -nargs=1 -bang CloseAllBuffers call s:CloseAllBuffers(<f-args>, <bang>0)
 endif
 
 if !exists(':CloseHiddenBuffers')
-  command -bang CloseHiddenBuffers call s:CloseHiddenBuffers(<bang>0)
+  command -nargs=1 -bang CloseHiddenBuffers call s:CloseHiddenBuffers(<f-args>, <bang>0)
 endif
 
 if !exists(':CloseNamelessBuffers')
-  command -bang CloseNamelessBuffers call s:CloseNamelessBuffers(<bang>0)
+  command -nargs=1 -bang CloseNamelessBuffers call s:CloseNamelessBuffers(<f-args>, <bang>0)
 endif
 
 if !exists(':CloseOtherBuffers')
-  command -bang CloseOtherBuffers call s:CloseOtherBuffers(<bang>0)
+  command -nargs=1 -bang CloseOtherBuffers call s:CloseOtherBuffers(<f-args>, <bang>0)
 endif
 
 if !exists(':CloseSelectedBuffers')
-  command -bang CloseSelectedBuffers call s:CloseSelectedBuffers(<bang>0)
+  command -nargs=1 -bang CloseSelectedBuffers call s:CloseSelectedBuffers(<f-args>, <bang>0)
 endif
 
 if !exists(':CloseThisBuffer')
-  command -bang CloseThisBuffer call s:CloseThisBuffer(<bang>0)
+  command -nargs=1 -bang CloseThisBuffer call s:CloseThisBuffer(<f-args>, <bang>0)
 endif
 
 if !exists(':CloseBuffers')
-  command -bang CloseBuffers call s:CloseBuffersMenu(<bang>0)
+  command -nargs=1 -bang CloseBuffers call s:CloseBuffersMenu(<f-args>, <bang>0)
 endif
 
 if !exists(':CloseBuffersMenu')
-  command -bang CloseBuffersMenu call s:CloseBuffersMenu(<bang>0)
+  command -nargs=1 -bang CloseBuffersMenu call s:CloseBuffersMenu(<f-args>, <bang>0)
 endif
 
 " Functions
 " --------------------
-function! s:CloseAllBuffers(bang)
+function! s:CloseAllBuffers(delete, bang)
   let all_buffers = map(s:getListedOrLoadedBuffers(), 'v:val.bufnr')
-  call s:DeleteBuffers(all_buffers , a:bang)
+  call s:DeleteBuffers(all_buffers, a:delete, a:bang)
 endfunction
 
-function! s:CloseHiddenBuffers(bang)
+function! s:CloseHiddenBuffers(delete, bang)
   let hidden_buffers = map(filter(s:getListedOrLoadedBuffers(), 'empty(v:val.windows) && v:val.name !~ "NERD_tree" && v:val.name !~ "__Tagbar__"'), 'v:val.bufnr')
-  call s:DeleteBuffers(hidden_buffers, a:bang)
+  call s:DeleteBuffers(hidden_buffers, a:delete, a:bang)
 endfunction
 
-function! s:CloseNamelessBuffers(bang)
+function! s:CloseNamelessBuffers(delete, bang)
   let nameless_buffers = map(filter(s:getListedOrLoadedBuffers(), 'v:val.name == ""'), 'v:val.bufnr')
-  call s:DeleteBuffers(nameless_buffers, a:bang)
+  call s:DeleteBuffers(nameless_buffers, a:delete, a:bang)
 endfunction
 
-function! s:CloseOtherBuffers(bang)
+function! s:CloseOtherBuffers(delete, bang)
   let current_buffer = bufnr('%')
   let other_buffers = map(filter(s:getListedOrLoadedBuffers(), 'v:val.bufnr != current_buffer && v:val.name !~ "NERD_tree" && v:val.name !~ "__Tagbar__"'), 'v:val.bufnr')
-  call s:DeleteBuffers(other_buffers, a:bang)
+  call s:DeleteBuffers(other_buffers, a:delete, a:bang)
 endfunction
 
-function! s:CloseSelectedBuffers(bang)
-  pwd
-  ls
-  call feedkeys(':' . s:GetBufferDeleteCommand(a:bang) . ' ')
-endfunction
-
-function! s:CloseThisBuffer(bang)
-  execute s:GetBufferDeleteCommand(a:bang)
-endfunction
-
-function! s:CloseBuffersMenu(bang)
-  let choice = confirm("Delete Buffers?", s:confirm_string, 1)
-  let function_name = s:letter_to_function_name[s:menu_option_letters[choice - 1]]
-  if function_name != ''
-    execute 'call s:' . function_name  . '('. a:bang . ')'
-  endif
+function! s:CloseThisBuffer(delete, bang)
+  execute s:GetBufferDeleteCommand(a:delete, a:bang)
 endfunction
 
 " Helper functions
 " --------------------
-function! s:DeleteBuffers(buffer_numbers, bang)
+function! s:DeleteBuffers(buffer_numbers, delete, bang)
   if !empty(a:buffer_numbers)
-    execute s:GetBufferDeleteCommand(a:bang) . ' ' . join(a:buffer_numbers)
+      if a:delete
+        execute s:GetBufferDeleteCommand(a:delete, a:bang) . ' ' . join(a:buffer_numbers)
+      else
+        for n in a:buffer_numbers
+            execute s:GetBufferDeleteCommand(a:delete, a:bang) . ' ' . n
+        endfor
+      endif
   endif
 endfunction
 
-function! s:GetBufferDeleteCommand(bang)
-  return 'bdelete' . (a:bang ? '!' : '')
+function! s:GetBufferDeleteCommand(delete, bang)
+  if a:delete
+    return 'bdelete' . (a:bang ? '!' : '')
+  else
+    return 'BufClose' . (a:bang ? '!' : '')
+  endif
 endfunction
 
 function s:getListedOrLoadedBuffers()
